@@ -1,0 +1,9 @@
+faster-whisper
+sounddevice
+numpy
+fastapi
+uvicorn[standard]
+piper-tts
+ollama
+qrcode[pil]
+ctranslate2

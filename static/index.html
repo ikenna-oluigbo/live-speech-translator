@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Traduction en direct</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --text:#1c2330; --muted:#667085; --accent:#2457d6; --ok:#1a8f4c; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#10141c; --card:#1a2030; --text:#eef1f6; --muted:#9aa4b5; --accent:#6a95ff; --ok:#4cc27f; --bad:#ff7b6b; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  }
+  main { width: 100%; max-width: 460px; text-align: center; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  p.sub { color: var(--muted); margin: 0 0 28px; }
+  button {
+    width: 100%; padding: 20px; font-size: 1.2rem; font-weight: 600;
+    border: 0; border-radius: 14px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.stop { background: var(--bad); }
+  .status { margin: 18px 0; color: var(--muted); font-size: .95rem; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background: var(--bad); margin-right:8px; }
+  .dot.on { background: var(--ok); }
+  .caption {
+    background: var(--card); border-radius: 14px; padding: 18px; min-height: 110px;
+    font-size: 1.15rem; line-height: 1.45; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .hint { color: var(--muted); font-size: .85rem; margin-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/image" alt="Live Translation" style="max-width:100%; max-height:400px; border-radius:12px;"><br>
+  <h1 id="title"></h1>
+  <p class="sub" id="sub"></p>
+
+  <button id="btn"></button>
+  <div class="status"><span class="dot" id="dot"></span><span id="status"></span></div>
+  <div class="caption" id="caption"></div>
+  <p class="hint" id="hint"></p>
+</main>
+
+<script>
+const btn = document.getElementById('btn');
+const statusEl = document.getElementById('status');
+const dot = document.getElementById('dot');
+const captionEl = document.getElementById('caption');
+
+const TEXT = {
+  fr: { title: '🎧 Traduction en direct', sub: 'Branchez vos écouteurs, puis appuyez sur le bouton.',
+        start: 'Écouter en français', stop: 'Arrêter', off: 'Pas connecté', connecting: 'Connexion…',
+        waiting: 'Connecté – en attente de la voix…', reconnecting: 'Reconnexion…',
+        caption: 'Les sous-titres apparaîtront ici.', hint: 'Gardez cette page ouverte et l’écran allumé pendant l’écoute.' },
+  en: { title: '🎧 Live translation', sub: 'Plug in your earphones, then tap the button.',
+        start: 'Listen in English', stop: 'Stop', off: 'Not connected', connecting: 'Connecting…',
+        waiting: 'Connected – waiting for the voice…', reconnecting: 'Reconnecting…',
+        caption: 'Subtitles will appear here.', hint: 'Keep this page open and the screen on while listening.' },
+};
+let T = TEXT.fr;
+
+function applyLanguage(lang) {
+  T = TEXT[lang] || TEXT.fr;
+  document.documentElement.lang = lang;
+  document.title = T.title.replace('🎧 ', '');
+  document.getElementById('title').textContent = T.title;
+  document.getElementById('sub').textContent = T.sub;
+  document.getElementById('hint').textContent = T.hint;
+  captionEl.textContent = T.caption;
+  btn.textContent = running ? T.stop : T.start;
+  setStatus(running ? T.connecting : T.off, false);
+}
+
+let ctx = null, ws = null, running = false;
+let nextTime = 0, chain = Promise.resolve(), pendingCaption = '';
+
+function setStatus(text, on) {
+  statusEl.textContent = text;
+  dot.classList.toggle('on', !!on);
+}
+
+btn.onclick = async () => {
+  if (!running) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();                    // needed by phones: must happen after a tap
+    const silent = ctx.createBuffer(1, 1, 22050);   // "unlocks" audio on iPhones
+    const s = ctx.createBufferSource(); s.buffer = silent; s.connect(ctx.destination); s.start(0);
+    running = true; nextTime = 0;
+    btn.textContent = T.stop; btn.classList.add('stop');
+    connect();
+  } else {
+    running = false;
+    if (ws) ws.close();
+    if (ctx) ctx.close();
+    btn.textContent = T.start; btn.classList.remove('stop');
+    setStatus(T.off, false);
+  }
+};
+
+// Ask the server which language the listeners will hear, then show the page in that language
+fetch('/config').then(r => r.json()).then(c => applyLanguage(c.lang)).catch(() => applyLanguage('fr'));
+
+function connect() {
+  if (!running) return;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.binaryType = 'arraybuffer';
+  setStatus(T.connecting, false);
+
+  ws.onopen = () => {
+    setStatus(T.waiting, true);
+    setInterval(() => { if (ws.readyState === 1) ws.send('ping'); }, 20000);
+  };
+  ws.onmessage = (e) => {
+    if (typeof e.data === 'string') {
+      pendingCaption = JSON.parse(e.data).fr;
+    } else {
+      enqueue(e.data, pendingCaption);
+      pendingCaption = '';
+    }
+  };
+  ws.onclose = () => {
+    if (running) { setStatus(T.reconnecting, false); setTimeout(connect, 2000); }
+  };
+}
+
+// Play each audio piece right after the previous one ends
+function enqueue(arrayBuffer, caption) {
+  chain = chain
+    .then(() => ctx.decodeAudioData(arrayBuffer))
+    .then((buffer) => {
+      const start = Math.max(ctx.currentTime + 0.05, nextTime);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(start);
+      nextTime = start + buffer.duration;
+      setTimeout(() => { if (caption) captionEl.textContent = caption; },
+                 Math.max(0, (start - ctx.currentTime) * 1000));
+    })
+    .catch((err) => console.error(err));
+}
+</script>
+</body>
+</html>
