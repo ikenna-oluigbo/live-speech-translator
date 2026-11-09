@@ -1,5 +1,5 @@
 """
-Voice manager for Live Translator.
+Voice manager for Live Speech Translator.
 
 Run it BEFORE starting the translation:     python voices.py
 
