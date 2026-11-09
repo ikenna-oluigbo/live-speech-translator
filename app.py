@@ -1,8 +1,8 @@
 """
-Live translation broadcast (English <-> French), 100% local and free.
+Live speech translation broadcast (English <-> French), 100% local and free.
 
 Pipeline:
-  Mixer -> laptop audio input -> speech detection -> Whisper (text)
+  Audio sound/Mixer -> laptop audio input -> speech detection -> Whisper (text)
         -> Ollama (translated text) -> Piper (voice) -> WebSocket -> listeners' phones
 
 Usage:
@@ -28,7 +28,7 @@ import numpy as np
 import sounddevice as sd
 
 # =====================================================================
-#  SETTINGS - the only part you normally need to edit
+#  SETTINGS - Edit as it suits your needs
 # =====================================================================
 DIRECTION = "en->fr"         # "en->fr" (English speaker) or "fr->en" (French speaker)
 
@@ -39,12 +39,12 @@ PAUSE_SECONDS = 0.5          # Silence that ends a sentence. Lower = faster, but
 LONG_TALK_SECONDS = 4        # After this much non-stop talking, accept even shorter pauses
 MAX_SECONDS = 10             # Force a cut if someone talks this long without any pause
 
-WHISPER_MODEL = "small.en"   # "base.en", "small.en", "medium.en" (English only) or "large-v3-turbo" (any language)
+WHISPER_MODEL = "small.en"   # "base.en", "small.en", "medium.en" (English only) or "large-v3-turbo" (any language) || "small", "medium" (French Input)
 WHISPER_DEVICE = "cpu"       # "cpu" or "cuda" (NVIDIA GPU)
 WHISPER_COMPUTE = "int8"     # cpu: "int8"   |   cuda: "int8_float16" (less memory) or "float16"
 WHISPER_CPU_THREADS = 0      # 0 = automatic. On CPU you can try 6 or 8 if your laptop has many cores
 
-OLLAMA_MODEL = "gemma3-4b-gpu:latest"   # Must appear in 'ollama list'. Others: "llama3.2:3b", "qwen2.5:7b", "mistral:7b"
+OLLAMA_MODEL = "gemma3:4b"   # Must appear in 'ollama list'. Others: "llama3.2:3b", "qwen2.5:7b", "mistral:7b"
 OLLAMA_URL = None            # None = auto-detect from OLLAMA_HOST (recommended)
 
 # DEFAULT voices. To choose/download/listen to other voices, run:  python voices.py
@@ -56,7 +56,7 @@ PIPER_VOICES = {
 PORT = 8000
 
 # Extra instructions for the translator (names, terms to keep, tone...). Example:
-# EXTRA_INSTRUCTIONS = "Keep the name 'Hope Foundation' untranslated. Use formal French (vous)."
+# EXTRA_INSTRUCTIONS = "Keep the name 'Artificial Intelligence' untranslated. Use formal French (vous)."
 EXTRA_INSTRUCTIONS = ""
 # =====================================================================
 
@@ -129,7 +129,7 @@ def run_safely(fn, label):
 # Whisper loading (GPU with safe fallbacks)
 # ---------------------------------------------------------------------
 def add_cuda_dlls():
-    """Let Windows find the NVIDIA libraries installed with pip (fixes cuBLAS/cuDNN 'not found')."""
+    """Let Windows find the NVIDIA libraries installed with pip (fixes any cuBLAS/cuDNN 'not found' error)."""
     import glob
     import site
     folders = []
@@ -151,6 +151,7 @@ def _model_name(m):
 
 def free_ollama_vram():
     """Unload any model Ollama is still holding in GPU memory, so Whisper can load first.
+    If you are using an Ollama model for other unrelated tasks, this stops and unload the model automatically. You can rerun the stopped model
     (A model left over from the previous run is a common cause of GPU 'out of memory' / cuBLAS errors.)"""
     try:
         from ollama_connect import get_client
@@ -203,7 +204,7 @@ def load_whisper(name):
 
 
 # ---------------------------------------------------------------------
-# STEP 1+2: listen to the mixer, cut into sentences, transcribe
+# STEP 1+2: listen to the audio source/mixer, cut into sentences, transcribe
 # ---------------------------------------------------------------------
 def listen_and_transcribe():
     whisper_name = WHISPER_MODEL
