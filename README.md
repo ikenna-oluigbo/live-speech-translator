@@ -1,8 +1,8 @@
-# 🎧 Live Translator
+# 🎧 Live Speech Translator
 
 **Real-time speech translation broadcast. 100% local, 100% free, no cloud.**
 
-A speaker talks into a microphone. Seconds later, listeners hear the translation in their own language through their phone and earphones. It runs on one ordinary Windows laptop, connected to a mixing console, and needs **no internet connection and no paid service** once installed.
+A speaker talks into a microphone. Seconds later, listeners hear the translation in their own language through their phone and earphones. It runs on one ordinary Windows laptop, either via headphones or connected to a mixing console, and needs **no internet connection and no paid service** once installed.
 
 Built for NGOs, churches, community events and small conferences that can't afford interpretation equipment or cloud subscriptions.
 
@@ -50,9 +50,9 @@ Built for NGOs, churches, community events and small conferences that can't affo
 **After:** the English speaker talks, and the laptop does the translation. Listeners open a web page on their phones, plug in earphones and hear French.
 
 ```
- English speaker ──► Mixer ──► Laptop ──► Wi-Fi ──► 📱 Listener (French audio + subtitles)
-                                                 ├─► 📱 Listener
-                                                 └─► 📱 Listener
+ English speaker ──► Headphones/Mixing board ──► Laptop ──► Wi-Fi ──► 📱 Listener (French audio + subtitles)
+                                                                  ├─► 📱 Listener
+                                                                  └─► 📱 Listener
 ```
 
 It also works in the opposite direction (French to English). You pick the direction in one setting.
@@ -61,12 +61,12 @@ It also works in the opposite direction (French to English). You pick the direct
 
 ## ✨ Features
 
-- **Fully local.** Speech recognition, translation and voice synthesis all run on your laptop. Nothing is sent to the internet.
+- **Fully local.** Speech recognition, translation via local LLM and voice synthesis all run on your laptop. Nothing is sent to the internet.
 - **Free.** Only open-source software and free models are used.
 - **No app to install for listeners.** They open a web page in their phone browser.
 - **Live subtitles.** The translated text is shown on the page while the voice plays.
 - **QR code.** A `join_qr.png` is generated at startup so people can scan and join.
-- **Two directions.** English to French, or French to English.
+- **Two directions.** English to French, or French to English. (Working on integrating Portuguese and Italian)
 - **GPU or CPU.** Uses an NVIDIA GPU if you have one and falls back to the CPU if the GPU fails.
 - **Built-in helpers.** `check_setup.py` diagnoses a new machine. `--list` and `--meter` help you set up the audio.
 - **Custom instructions.** Tell the translator to keep names untranslated or use formal French.
@@ -81,7 +81,7 @@ It also works in the opposite direction (French to English). You pick the direct
 ```mermaid
 flowchart LR
     subgraph Room["🎤 Event room"]
-        MIC["Speaker's microphone"] --> MIX["Mixing console<br/>(dedicated output)"]
+        MIC["Speaker's microphone"] --> MIX["Mixing console(optional)<br/>(dedicated output)"]
     end
 
     subgraph Laptop["💻 Laptop: everything runs here, offline"]
@@ -128,7 +128,7 @@ stateDiagram-v2
     [*] --> Waiting
     Waiting --> Recording: volume goes above threshold
     Recording --> Recording: speaker keeps talking
-    Recording --> Processing: pause detected (or 15 s limit reached)
+    Recording --> Processing: pause detected (or 10 s limit reached)
     Processing --> Waiting: audio sent to Whisper
     Waiting --> Waiting: silence or background noise
 ```
@@ -168,7 +168,7 @@ The voice then takes as long to speak as the sentence is long. If the speaker ta
 | | Minimum | Recommended |
 |---|---|---|
 | **Laptop** | Windows 11, 16 GB RAM | Windows 11, 32 GB RAM |
-| **GPU** | None (CPU only works) | NVIDIA with 8 GB VRAM |
+| **GPU** | None (CPU only works) | NVIDIA with at least 8 GB VRAM |
 | **Mixer connection** | 3.5 mm line-in cable | USB audio interface or USB mixer |
 | **Network** | Any Wi-Fi router, **no internet needed** | Dedicated router for the event |
 
@@ -176,7 +176,7 @@ Tested hardware profiles during development:
 
 | Laptop | Whisper | Translator | Notes |
 |---|---|---|---|
-| 32 GB RAM, 4 GB VRAM | `small.en`, CPU | `gemma3:4b` | Works. Delay ~4 to 7 s |
+| 32 GB RAM, 4 GB VRAM | `small.en`, CPU | `gemma3:4b` | Works. Delay ~2 to 5 s |
 | 16 GB RAM, 8 GB VRAM (NVIDIA) | `large-v3-turbo`, GPU | `qwen2.5:7b` or `mistral:7b` | Better quality, needs CUDA setup |
 
 ### Software (all free)
@@ -195,7 +195,7 @@ Internet is needed **only once, during installation** (to download Python packag
 ## 📁 Project structure
 
 ```
-live-translator/
+live-speech-translator/
 ├── app.py                 ← The whole system (run this)
 ├── ollama_connect.py      ← Helper that connects to Ollama reliably
 ├── check_setup.py         ← Diagnoses a new machine (run this first)
@@ -231,7 +231,7 @@ live-translator/
 
 ### Step 2: Install Ollama and download a translation model
 
-1. Install Ollama from [ollama.com/download](https://ollama.com/download). It starts in the background (look for the icon near the clock).
+1. Install Ollama from [ollama.com/download](https://ollama.com/download). It starts in the background.
 2. Download a model. Choose by your graphics card memory (see [Choosing models](#-choosing-models-for-your-hardware)):
    ```
    ollama pull gemma3:4b
@@ -244,8 +244,8 @@ live-translator/
 ### Step 3: Get the project
 
 ```
-git clone https://github.com/YOUR-USERNAME/live-translator.git
-cd live-translator
+git clone https://github.com/YOUR-USERNAME/live-speech-translator.git
+cd live-speech-translator
 ```
 
 No Git? On GitHub click **Code → Download ZIP**, unzip it, and open Command Prompt inside the folder.
@@ -277,7 +277,7 @@ python voices.py
   4) Quit
 ```
 
-1. Choose **3** to download voices. Pick English or French, then type the numbers of the voices you want (each is roughly 60 to 110 MB). Start with `en_US-lessac-medium` and `fr_FR-siwis-medium`.
+1. Choose **3** to download voices. Pick English or French, then type the numbers of the voices you want (each is roughly 60 to 110 MB). Start with `en_US-lessac-medium` and `fr_FR-siwis-medium` . Downloaded voices should be in the `voices` folder, in the project directory.
 2. Choose **1** or **2** to listen to each installed voice. A sample sentence plays on the laptop speakers. Answer `y` to select it, `r` to replay, or `n` to try another.
 3. Your choice is saved in `voice_settings.json`, so you never have to edit code. Run `python voices.py` again whenever you want to change a voice.
 
@@ -313,7 +313,7 @@ This checks Python, packages, files, voices, Ollama, the model, audio devices an
 
 ---
 
-## 🎛️ Connecting the mixing console
+## 🎛️ Connecting the mixing console or an audio input source of your choice
 
 ### Which output to use
 
@@ -373,8 +373,8 @@ python app.py --meter
 
 Watch the live level meter:
 
-1. Stay silent and note the number (for example `0.002`).
-2. Speak normally and note the number (for example `0.05`).
+1. Stay silent and note the number (for example `0.001`).
+2. Speak normally and note the number (for example `0.115`).
 3. Set `SPEECH_THRESHOLD` in `app.py` somewhere between the two, closer to the silence value (for example `0.01`).
 
 Too low and background noise triggers false sentences. Too high and quiet speech is ignored.
@@ -449,7 +449,7 @@ Also check that:
 2. Scan the QR code or open the address.
 3. **Plug in earphones.**
 4. Tap **"Écouter en français"** (or **"Listen in English"**).
-5. Keep the screen on and the page open.
+5. Keep the screen on always and the page open. A turned off screen or closed page gives no sound.
 
 Audio on phones can only start after a tap, which is why the button is needed.
 
@@ -466,7 +466,7 @@ All settings are at the top of `app.py`.
 | `CHANNELS` | `1` | Audio channels. Try `2` if you get an audio error (mixed to mono automatically) |
 | `SPEECH_THRESHOLD` | `0.01` | Volume level counted as speech. Set it with `--meter` |
 | `PAUSE_SECONDS` | `0.7` | Silence that ends a sentence. Lower = faster but may cut sentences |
-| `MAX_SECONDS` | `15` | Forced cut for very long sentences. Lower (for example `8`) reduces delay |
+| `MAX_SECONDS` | `10` | Forced cut for very long sentences. Lower (for example `8`) reduces delay |
 | `WHISPER_MODEL` | `"small.en"` | Speech recognition model (see below) |
 | `WHISPER_DEVICE` | `"cpu"` | `"cpu"` or `"cuda"` (NVIDIA GPU) |
 | `WHISPER_COMPUTE` | `"int8"` | `"int8"` for CPU, `"int8_float16"` or `"float16"` for GPU |
@@ -479,7 +479,7 @@ All settings are at the top of `app.py`.
 ### Example: custom translator instructions
 
 ```python
-EXTRA_INSTRUCTIONS = "Keep the name 'Hope Foundation' untranslated. Use formal French (vous)."
+EXTRA_INSTRUCTIONS = "Keep the name 'Artificial Intelligence' untranslated. Use formal French (vous)."
 ```
 
 ### Command-line options
@@ -649,7 +649,7 @@ Being honest about these will save you surprises.
 4. **Each sentence is translated almost independently.** Only the previous two sentences are used as context.
 5. **The voice is synthetic.** Piper is good for free software, but it isn't human.
 6. **One direction per run.** No automatic language detection.
-7. **Fast speakers without pauses** make the translation fall behind.
+7. **Fast speakers without pauses** make the translation fall behind. Speak slowly or reduce `MAX_SECONDS`
 8. **Phones may stop audio when the screen locks.** This depends on the phone.
 9. **Capacity is untested.** The audio is small, so many phones should work on a good router, but this has not been load-tested. A weak router or Windows hotspot will limit you.
 10. **Windows focus.** Instructions and testing target Windows 11. Other systems may work but are unsupported.
@@ -679,7 +679,7 @@ Being honest about these will save you surprises.
 - [ ] Bring spare earphones, a USB cable and a 3.5 mm cable
 
 **At the venue**
-- [ ] Connect the dedicated mixer output to the laptop
+- [ ] Connect the dedicated mixer output or USB audio source to the laptop
 - [ ] Set up the router and connect the laptop (cable if possible)
 - [ ] Set Windows power mode to **Best performance** and disable sleep
 - [ ] Close other heavy programs (browsers, video calls)
@@ -747,7 +747,7 @@ Ideas for contributors:
 
 Contributions are welcome, especially:
 
-- Test reports on different laptops, mixers and routers (please include your hardware, settings and measured delays)
+- Test reports on different laptops, mixers, audio sources, and routers (please include your hardware, settings and measured delays)
 - Better prompts for the translator
 - New languages
 - Documentation improvements
@@ -762,7 +762,7 @@ Please open an **issue** describing the problem or idea, or send a **pull reques
 
 ## 📜 License and credits
 
-**License:** add a `LICENSE` file of your choice (for example MIT) before publishing.
+**License:** `MIT LICENSE` .
 
 This project is built on the work of others. Thank you to:
 
